@@ -1,74 +1,140 @@
-// Solmar Heat — wanted system + combat. Pure functions for the wanted ladder,
-// damage, and shooting so the logic tests can exercise them headlessly.
-import { clamp, dist } from './random.js';
-import { WEAPONS, MAX_WANTED } from './config.js';
+// Solmar Heat — combat: fists, pistol and SMG, plus armor.
+// Shooting is a cone test from the player's aim: a target inside the range
+// and inside the half-angle of the aim counts as hit. Damage hits armor
+// first and only spills into health once the vest is gone. Pure functions
+// wherever possible, so the tests can drive them without a browser.
 
-export function weaponDef(id) { return WEAPONS.find((w) => w.id === id) || WEAPONS[0]; }
+import { distance, angleTo, angleDifference } from './random.js';
 
-// Wanted gain table: what each crime is worth in stars.
-export const CRIME_WANTED = { stealCar: 1, punch: 1, shoot: 2, killPed: 2, killCop: 3, hitAndRun: 1 };
+export const WEAPONS = {
+  fists: {
+    key: 'fists', name: 'Fists', damage: 15, range: 1.5,
+    rate: 0.35, auto: false, ammoKey: null, spread: 0.9,
+  },
+  pistol: {
+    key: 'pistol', name: 'Pistol', damage: 26, range: 15,
+    rate: 0.28, auto: false, ammoKey: 'pistol', spread: 0.12,
+  },
+  smg: {
+    key: 'smg', name: 'SMG', damage: 13, range: 13,
+    rate: 0.09, auto: true, ammoKey: 'smg', spread: 0.22,
+  },
+};
 
-export function addWanted(state, crime) {
-  const gain = CRIME_WANTED[crime] || 1;
-  state.wanted = clamp(state.wanted + gain, 0, MAX_WANTED);
-  state.wantedTimer = 0;
-  state.hidden = false;
-  return state.wanted;
+// Is a target inside the firing cone? target must be a {x, y} point.
+export function inFiringCone(origin, aimAngle, weapon, target) {
+  const d = distance(origin.x, origin.y, target.x, target.y);
+  if (d > weapon.range) return false;
+  if (d < 0.01) return true;
+  const toTarget = angleTo(origin.x, origin.y, target.x, target.y);
+  return Math.abs(angleDifference(aimAngle, toTarget)) <= weapon.spread;
 }
 
-// Decay: wanted falls one star after `seconds` hidden (out of police sight).
-export function decayWanted(state, dt, isSeen) {
-  if (state.wanted === 0) return 0;
-  if (isSeen) { state.wantedTimer = 0; return state.wanted; }
-  state.wantedTimer += dt;
-  const need = 14 + state.wanted * 6; // higher wanted takes longer to shake
-  if (state.wantedTimer >= need) {
-    state.wanted -= 1;
-    state.wantedTimer = 0;
+// Fire the player's current weapon at a list of targets (peds, cops, cars).
+// Returns the hit record or null. Consumes one round of ammo for guns.
+export function fireWeapon(game, targets) {
+  const player = game.player;
+  const weapon = WEAPONS[player.weapon];
+  if (!weapon || player.fireCooldown > 0) return null;
+  if (weapon.ammoKey) {
+    if ((player.ammo[weapon.ammoKey] || 0) <= 0) {
+      game.events.push('dryFire');
+      player.fireCooldown = weapon.rate;
+      return null;
+    }
+    player.ammo[weapon.ammoKey] -= 1;
   }
-  return state.wanted;
-}
+  player.fireCooldown = weapon.rate;
+  game.alarmTimer = 4; // gunfire draws attention
+  game.events.push('shoot');
+  game.muzzleFlash = 0.06;
 
-export function policeCountFor(wanted) {
-  return { cars: Math.min(wanted, 4), cops: wanted >= 2 ? Math.min((wanted - 1) * 2, 6) : 0, boat: wanted >= 3 ? 1 : 0 };
-}
-
-export function applyDamage(target, raw, armorFirst = true) {
-  let dmg = raw;
-  if (armorFirst && target.armor > 0) {
-    const absorbed = Math.min(target.armor, dmg);
-    target.armor -= absorbed; dmg -= absorbed;
-  }
-  target.health = Math.max(0, target.health - dmg);
-  return target.health;
-}
-
-// A shot: returns hit info. Shooter at (x,y) aiming at angle, target list of {x,y,r,health}.
-export function shoot(shooter, angle, targets, weaponId, rng) {
-  const w = weaponDef(weaponId);
-  const range = w.range;
-  let best = null; let bestD = Infinity;
-  for (const t of targets) {
-    const d = dist(shooter.x, shooter.y, t.x, t.y);
-    if (d > range + (t.r || 20)) continue;
-    const a = Math.atan2(t.y - shooter.y, t.x - shooter.x);
-    let diff = Math.abs(((a - angle) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
-    if (diff < 0.16 && d < bestD) { best = t; bestD = d; }
-  }
-  if (!best) return { hit: false, target: null, damage: 0 };
-  const spread = rng ? rng.range(0.85, 1.15) : 1;
-  const dmg = Math.round(w.damage * spread);
-  best.health = Math.max(0, (best.health ?? 100) - dmg);
-  return { hit: true, target: best, damage: dmg, killed: best.health <= 0 };
-}
-
-export function punch(shooter, targets) {
-  const w = weaponDef('fists');
-  for (const t of targets) {
-    if (dist(shooter.x, shooter.y, t.x, t.y) < w.range + (t.r || 18)) {
-      t.health = Math.max(0, (t.health ?? 100) - w.damage);
-      return { hit: true, target: t, damage: w.damage, killed: t.health <= 0 };
+  let best = null;
+  let bestD = Infinity;
+  for (const target of targets) {
+    if (target === player) continue;
+    if (target.alive === false) continue;
+    if (target.health !== undefined && target.health <= 0) continue;
+    if (!inFiringCone(player, player.aimAngle, weapon, target)) continue;
+    const d = distance(player.x, player.y, target.x, target.y);
+    if (d < bestD) {
+      bestD = d;
+      best = target;
     }
   }
-  return { hit: false, target: null, damage: 0 };
+  if (!best) return { hit: false, damage: 0 };
+  const dealt = applyDamage(best, weapon.damage);
+  game.events.push({ type: 'hit', damage: dealt, target: best });
+  return { hit: true, target: best, damage: dealt };
+}
+
+// A punch: short range, wide arc, no ammo, no noise.
+export function punchAttack(game, targets) {
+  const player = game.player;
+  const weapon = WEAPONS.fists;
+  if (player.punchCooldown > 0) return null;
+  player.punchCooldown = weapon.rate;
+  game.events.push('punch');
+  let best = null;
+  let bestD = Infinity;
+  for (const target of targets) {
+    if (target === player) continue;
+    if (target.health !== undefined && target.health <= 0) continue;
+    if (!inFiringCone(player, player.aimAngle, weapon, target)) continue;
+    const d = distance(player.x, player.y, target.x, target.y);
+    if (d < bestD) {
+      bestD = d;
+      best = target;
+    }
+  }
+  if (!best) return { hit: false, damage: 0 };
+  const dealt = applyDamage(best, weapon.damage);
+  game.events.push({ type: 'hit', damage: dealt, target: best });
+  return { hit: true, target: best, damage: dealt };
+}
+
+// Damage goes to armor first, then health. Returns the damage actually dealt.
+export function applyDamage(target, amount) {
+  if (target.armor === undefined) target.armor = 0;
+  if (target.health === undefined) target.health = 100;
+  let remaining = amount;
+  if (target.armor > 0) {
+    const absorbed = Math.min(target.armor, remaining);
+    target.armor -= absorbed;
+    remaining -= absorbed;
+  }
+  target.health -= remaining;
+  if (target.health <= 0) {
+    target.health = 0;
+    target.alive = false;
+  }
+  return amount;
+}
+
+export function damagePlayer(game, amount) {
+  const dealt = applyDamage(game.player, amount);
+  game.events.push({ type: 'playerHurt', damage: dealt });
+  if (!game.player.alive) {
+    game.state = 'gameover';
+    game.events.push('playerDied');
+  }
+  return dealt;
+}
+
+// Switch the player's weapon if they own it.
+export function selectWeapon(game, key) {
+  const player = game.player;
+  if (!WEAPONS[key]) return false;
+  if (!player.weaponsOwned[key]) return false;
+  player.weapon = key;
+  return true;
+}
+
+export function allShootableTargets(game) {
+  const targets = [];
+  for (const ped of game.peds) targets.push(ped);
+  for (const car of game.traffic) targets.push(car);
+  for (const cop of game.police) targets.push(cop);
+  if (game.policeBoat) targets.push(game.policeBoat);
+  return targets;
 }

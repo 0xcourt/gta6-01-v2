@@ -1,72 +1,84 @@
-// Solmar Heat — configuration: tuning, palette, districts, vehicles, shops.
-// All values are plain data so the game logic can be tested without a browser.
-export const GAME_TITLE = 'SOLMAR HEAT';
-export const GAME_SUBTITLE = 'A sun-soaked coastal crime story';
-export const WORLD_W = 2400;
-export const WORLD_H = 2400;
-export const TILE = 48;
-export const DAY_LENGTH = 240; // seconds for a full day/night cycle
-export const GARAGE_PRICE = 25000;
-export const START_CASH = 150;
-export const MAX_WANTED = 5;
-export const MAX_HEALTH = 100;
+// Solmar Heat — central tuning constants.
+// One place holds every number the rest of the game balances against, so a
+// tweak here ripples through driving, combat, the wanted system and missions
+// without hunting through a dozen files.
 
-export const PALETTE = {
-  skyDawn: '#ff9a5c', skyDay: '#7ec8e3', skyDusk: '#ff7e5f', skyNight: '#1b2340',
-  sand: '#f2d8a0', grass: '#7fae5a', road: '#3a3a44', roadLine: '#e8d44d',
-  sidewalk: '#b8a88a', water: '#2a7fa8', waterDeep: '#1d5f86',
-  building: ['#e8b4a0', '#d9a066', '#c98f7a', '#a8b8c8', '#e0c090', '#b0a0c0'],
-  neon: ['#ff2e88', '#00e5ff', '#ffe600', '#7cff00', '#ff6a00'],
+export const TILE_W = 64; // iso tile width in screen pixels
+export const TILE_H = 32; // iso tile height in screen pixels
+export const WORLD_SIZE = 48; // the city is a 48 x 48 tile island grid
+export const WATER_BORDER = 3; // tiles of open water around the island edge
+
+export const PLAYER_WALK_SPEED = 6.0; // tiles per second on foot
+export const PLAYER_SPRINT_SPEED = 9.5;
+export const CAR_ACCEL = 15.0;
+export const CAR_MAX_SPEED = 23.0;
+export const CAR_REVERSE_SPEED = 8.0;
+export const CAR_TURN_RATE = 2.9; // radians per second at full lock
+export const CAR_BRAKE = 26.0;
+export const BOAT_ACCEL = 12.0;
+export const BOAT_MAX_SPEED = 27.0;
+
+export const WANTED_MAX = 5;
+export const WANTED_DECAY_HIDDEN_SECONDS = 9; // quiet seconds before a star fades
+export const WANTED_DECAY_PER_SECOND = 0.12; // stars lost per second while hidden
+export const POLICE_SIGHT_RANGE = 14; // tiles; closer than this and you are "seen"
+
+export const STORY_GOAL_CASH = 25000; // what Roxy must earn to buy back the garage
+export const DAY_LENGTH_SECONDS = 480; // one full in-game day, in real seconds
+export const SAVE_KEY = 'solmar-heat-save-v1';
+
+export const SHOP_PRICES = {
+  armor: 200, // full armor vest
+  pistolAmmo: 100, // +24 pistol rounds
+  smg: 1500, // buy the SMG (comes with 60 rounds)
+  smgAmmo: 250, // +90 SMG rounds
+  repair: 150, // patch the car you are driving back to full health
+  car: 4000, // a fresh sports car delivered to the garage
 };
 
-export const DISTRICTS = [
-  { name: 'Port & Docks', x: 0, y: 0, w: 620, h: 620, kind: 'port', color: '#8a7a5a' },
-  { name: 'Downtown', x: 640, y: 80, w: 760, h: 700, kind: 'downtown', color: '#c8b090' },
-  { name: 'Marina', x: 1420, y: 60, w: 500, h: 560, kind: 'marina', color: '#7fb8c8' },
-  { name: 'Beach Strip', x: 640, y: 800, w: 900, h: 420, kind: 'beach', color: '#f2d8a0' },
-  { name: 'Industrial', x: 0, y: 640, w: 620, h: 560, kind: 'industrial', color: '#9a8a78' },
-  { name: 'Hillside Villas', x: 1560, y: 800, w: 840, h: 560, kind: 'villas', color: '#b8c898' },
-  { name: 'Old Town', x: 640, y: 1240, w: 900, h: 560, kind: 'oldtown', color: '#d8b088' },
-  { name: 'North Island', x: 1560, y: 80, w: 0, h: 0, kind: 'island', color: '#a8d8b0' },
+export const DISTRICT_COLORS = {
+  downtown: ['#c98f4e', '#b57a3e', '#d9a05f', '#8f6b4a'],
+  residential: ['#e0a878', '#c98f6b', '#dba878', '#b98a5e'],
+  port: ['#9a8f7a', '#7d7466', '#a89a82', '#6e6a5e'],
+  marina: ['#e8d8b0', '#d9c49a', '#f0e0bd', '#c9b184'],
+  industrial: ['#8d8578', '#756e62', '#9b9384', '#5f5a52'],
+  hills: ['#f0e6d2', '#e6d6b8', '#d9c49a', '#efe0c2'],
+  beach: ['#f2e3b8', '#e8d5a0', '#f7eac6', '#ddc793'],
+  uptown: ['#dba878', '#c98f6b', '#e0b184', '#b98a5e'],
+};
+
+export const BUILDING_HEIGHTS = {
+  downtown: [46, 132],
+  residential: [18, 46],
+  port: [14, 26],
+  marina: [14, 30],
+  industrial: [16, 32],
+  hills: [12, 26],
+  beach: [12, 22],
+  uptown: [20, 54],
+};
+
+export const CAR_COLORS = [
+  '#c0392b', '#2980b9', '#f1c40f', '#27ae60', '#8e44ad',
+  '#e67e22', '#ecf0f1', '#2c3e50', '#16a085', '#d35400',
 ];
 
-export const CARS = [
-  { id: 'sedan', name: 'Solmar Sedan', color: '#c0392b', speed: 340, accel: 220, price: 1200, hp: 100 },
-  { id: 'taxi', name: 'City Taxi', color: '#f1c40f', speed: 320, accel: 200, price: 900, hp: 90 },
-  { id: 'coupe', name: 'Sunset Coupe', color: '#8e44ad', speed: 420, accel: 300, price: 4500, hp: 80 },
-  { id: 'pickup', name: 'Dock Pickup', color: '#2e86c1', speed: 300, accel: 190, price: 1500, hp: 140 },
-  { id: 'sport', name: 'Vela Sport', color: '#e74c3c', speed: 480, accel: 360, price: 9000, hp: 70 },
-  { id: 'van', name: 'Courier Van', color: '#f8f9fa', speed: 280, accel: 170, price: 2000, hp: 160 },
-  { id: 'police', name: 'Police Cruiser', color: '#1a2a4a', speed: 440, accel: 330, price: 0, hp: 120 },
-  { id: 'boat', name: 'Marina Speedboat', color: '#ffffff', speed: 380, accel: 260, price: 6000, hp: 90 },
-];
+export const PALETTES = {
+  day: {
+    name: 'day', sky: '#7ec8e3', water: '#2e86c1', waterDeep: '#1f618d',
+    land: '#7fb069', landDry: '#a3b86b', road: '#4a4a52', roadLine: '#e8e8e8',
+    beach: '#ecd9a0', dock: '#8d7b68', bridge: '#6e5a44', night: 0,
+  },
+  sunset: {
+    name: 'sunset', sky: '#e8907c', water: '#7a4a8f', waterDeep: '#5d3a6e',
+    land: '#8a9a58', landDry: '#a8905e', road: '#4a3f4a', roadLine: '#f0d0a0',
+    beach: '#e8c890', dock: '#7d6b58', bridge: '#5e4a3a', night: 0.25,
+  },
+  night: {
+    name: 'night', sky: '#0d1b3a', water: '#12294d', waterDeep: '#0a1a33',
+    land: '#2e4a2e', landDry: '#3d4a2e', road: '#23232e', roadLine: '#8a8a7a',
+    beach: '#5e5238', dock: '#3a3230', bridge: '#2e2620', night: 1,
+  },
+};
 
-export const WEAPONS = [
-  { id: 'fists', name: 'Fists', damage: 12, price: 0, ammo: Infinity, range: 46 },
-  { id: 'pistol', name: 'Pistol', damage: 34, price: 800, ammo: 24, range: 420 },
-  { id: 'smg', name: 'Street SMG', damage: 18, price: 2400, ammo: 60, range: 360 },
-];
-
-export const SHOP_ITEMS = [
-  { id: 'pistol', kind: 'weapon', name: 'Pistol + 24 rounds', price: 800 },
-  { id: 'ammo', kind: 'ammo', name: 'Pistol ammo (24)', price: 150 },
-  { id: 'smg', kind: 'weapon', name: 'Street SMG + 60 rounds', price: 2400 },
-  { id: 'armor', kind: 'armor', name: 'Body armor (+50)', price: 500 },
-  { id: 'health', kind: 'health', name: 'First-aid kit (full heal)', price: 200 },
-  { id: 'coupe', kind: 'car', name: 'Sunset Coupe', price: 4500 },
-  { id: 'sport', kind: 'car', name: 'Vela Sport', price: 9000 },
-  { id: 'boat', kind: 'car', name: 'Marina Speedboat', price: 6000 },
-  { id: 'safehouse', kind: 'safehouse', name: 'Safehouse upgrade (heal + save)', price: 3000 },
-];
-
-export const WANTED_LABELS = ['', 'Watched', 'Chased', 'Hunted', 'Siege', 'Lockdown'];
-export const CONTROLS = [
-  ['W A S D / Arrows', 'Move / drive'],
-  ['E', 'Enter, exit or steal car / boat'],
-  ['F', 'Punch'],
-  ['Mouse aim + Click', 'Shoot pistol / SMG'],
-  ['Space', 'Handbrake'],
-  ['P / Esc', 'Pause'],
-  ['M', 'Mute music & sound'],
-  ['1 / 2 / 3', 'Fists / Pistol / SMG'],
-];
+export const MISSION_CASH_GOAL = STORY_GOAL_CASH;

@@ -1,44 +1,104 @@
-// Solmar Heat — save / load. Pure serialize/deserialize over a plain object,
-// so tests can pass a fake storage. The browser wrapper uses localStorage.
-export const SAVE_KEY = 'solmar-heat-save-v1';
+// Solmar Heat — save and load through localStorage.
+// The save is a small plain object: cash, health, position, mission progress,
+// wanted level, clock and weapons. Where localStorage does not exist (the
+// node tests), an in-memory slot stands in so the round-trip still works.
 
-export function serializeSave(game) {
-  return {
-    version: 1, seed: game.seed,
-    player: {
-      x: game.player.x, y: game.player.y, health: game.player.health, armor: game.player.armor,
-      cash: game.player.cash, weapon: game.player.weapon, ammo: game.player.ammo,
-      weaponsOwned: game.player.weaponsOwned, safehouseLevel: game.player.safehouseLevel,
-      garageOwned: game.player.garageOwned,
-    },
-    mission: game.mission, wanted: game.wanted, timeOfDay: game.timeOfDay,
-    carsOwned: game.carsOwned, stats: game.stats,
-  };
+import { SAVE_KEY } from './config.js';
+
+let memorySlot = null;
+
+function storage() {
+  try {
+    if (typeof localStorage !== 'undefined') return localStorage;
+  } catch (err) {
+    // localStorage exists but is blocked (private mode, sandbox).
+  }
+  return null;
 }
 
-export function deserializeSave(data) {
-  if (!data || typeof data !== 'object' || data.version !== 1) return null;
-  if (typeof data.player?.x !== 'number' || typeof data.player?.cash !== 'number') return null;
-  if (!data.mission || typeof data.mission.current !== 'number') return null;
+export function saveGame(game) {
+  const data = {
+    version: 1,
+    cash: game.cash,
+    health: game.player.health,
+    armor: game.player.armor,
+    x: game.player.x,
+    y: game.player.y,
+    missionIndex: game.missions.index,
+    objectiveIndex: game.missions.objectiveIndex,
+    wanted: game.wanted,
+    timeHours: game.timeHours,
+    weapon: game.player.weapon,
+    weaponsOwned: { ...game.player.weaponsOwned },
+    ammo: { ...game.player.ammo },
+    savedAt: new Date().toISOString(),
+  };
+  const store = storage();
+  if (store) {
+    try {
+      store.setItem(SAVE_KEY, JSON.stringify(data));
+    } catch (err) {
+      memorySlot = data;
+    }
+  } else {
+    memorySlot = data;
+  }
   return data;
 }
 
-export function saveGame(storage, game) {
+export function loadGame() {
+  const store = storage();
+  let raw = null;
+  if (store) {
+    try {
+      raw = store.getItem(SAVE_KEY);
+    } catch (err) {
+      raw = null;
+    }
+  }
+  if (!raw && memorySlot) return { ...memorySlot };
+  if (!raw) return null;
   try {
-    storage.setItem(SAVE_KEY, JSON.stringify(serializeSave(game)));
-    return true;
-  } catch { return false; }
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object' || data.version !== 1) return null;
+    return data;
+  } catch (err) {
+    return null;
+  }
 }
-export function loadGame(storage) {
-  try {
-    const raw = storage.getItem(SAVE_KEY);
-    if (!raw) return null;
-    return deserializeSave(JSON.parse(raw));
-  } catch { return null; }
+
+export function hasSave() {
+  return loadGame() !== null;
 }
-export function hasSave(storage) {
-  try { return storage.getItem(SAVE_KEY) !== null; } catch { return false; }
+
+export function clearSave() {
+  const store = storage();
+  if (store) {
+    try {
+      store.removeItem(SAVE_KEY);
+    } catch (err) { /* ignore */ }
+  }
+  memorySlot = null;
 }
-export function clearSave(storage) {
-  try { storage.removeItem(SAVE_KEY); return true; } catch { return false; }
+
+// Write a loaded save back into a live game object.
+export function applySave(game, data) {
+  if (!data) return false;
+  game.cash = data.cash || 0;
+  game.player.health = data.health ?? 100;
+  game.player.armor = data.armor ?? 0;
+  game.player.x = data.x ?? game.world.landmarks.spawn.x;
+  game.player.y = data.y ?? game.world.landmarks.spawn.y;
+  game.player.alive = game.player.health > 0;
+  game.player.onFoot = true;
+  game.player.vehicle = null;
+  game.wanted = data.wanted || 0;
+  game.timeHours = data.timeHours ?? 10;
+  game.player.weapon = data.weapon || 'pistol';
+  game.player.weaponsOwned = { fists: true, pistol: true, smg: false, ...(data.weaponsOwned || {}) };
+  game.player.ammo = { pistol: 48, smg: 0, ...(data.ammo || {}) };
+  game.missions.jumpTo(game, data.missionIndex || 0);
+  game.missions.objectiveIndex = data.objectiveIndex || 0;
+  game.state = 'playing';
+  return true;
 }

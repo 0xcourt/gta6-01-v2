@@ -1,60 +1,77 @@
 # Solmar Heat
 
-![make.fun bounty](https://make.fun/badge/gta6-01.svg)
+![gta6-01](https://make.fun/badge/gta6-01.svg)
 ![rank](https://make.fun/badge/gta6-01/0xcourt/gta6-01-v2/rank.svg)
 ![reward](https://make.fun/badge/gta6-01/0xcourt/gta6-01-v2/reward.svg)
 
-An isometric 2.5D open-world crime game, built for the [make.fun bounty "Make GTA 6"](https://make.fun/bounty/gta6-01) on [make.fun](https://make.fun). Vanilla JavaScript + Canvas 2D, ES modules, no libraries, no network at runtime, no external assets — all art is drawn in code and all sound is synthesized with WebAudio.
+An open-world crime game for the [gta6-01 bounty](https://make.fun/bounty/gta6-01) on [make.fun](https://make.fun). Vanilla JavaScript + Canvas 2D, ES modules, no libraries, no network at runtime, no external assets — all art is drawn in code and all sound is synthesized with WebAudio.
 
 ## The story
 
-Solmar is a sun-soaked coastal city: port and docks, a marina, downtown towers, a beach strip, an industrial zone, hillside villas, and two islands linked by bridges. Rosa "Roxy" Marín, a former getaway driver turned courier, must earn **$25,000** to buy back her late father's garage from rival crew boss **El Toro** — across a 10-mission arc of courier runs, getaways, pickups, a boat chase, and a final heist to take the garage back.
+Rosa "Roxy" Marín, a former getaway driver turned courier, must earn **$25,000** to buy back her late father's garage from rival crew boss **El Toro**. A 10-mission arc runs through courier deliveries, car theft, timed getaways, a boat chase across the bay, and a final heist to take the garage back. The ten mission payouts add up to exactly $25,000.
 
-## How to play
+## The city
 
-Serve the `game/` folder with any static server and open `game/index.html` in desktop Chrome:
-
-```sh
-python3 -m http.server 8080 --directory game
-# open http://localhost:8080
-```
-
-Press **Enter** on the title screen to start. Progress saves to localStorage (press **Q** to quick-save; the title screen offers to load a save).
+Solmar is a seeded, deterministic island city: a port and docks, a marina, downtown towers with neon, a beach strip, an industrial zone, and hillside villas — plus an east island and a southern beach islet, all linked by bridges over the water. Buildings are isometric boxes of varying heights, roads run on a grid, palm trees and props fill the blocks, and a day/night cycle shifts the palette from sun to sunset to neon-lit night.
 
 ## Controls
 
 | Key | Action |
 | --- | --- |
-| W A S D / Arrow keys | Move on foot / drive |
-| E | Enter, exit or steal a car / boat |
+| W A S D / arrows | Walk / drive (W accelerate, S brake/reverse, A/D steer) |
+| E | Enter/exit/steal a car or boat, open the corner shop |
+| Mouse aim + click | Shoot |
 | F | Punch |
-| Mouse aim + click | Shoot pistol / SMG |
 | Space | Handbrake |
+| 1 / 2 / 3 | Fists / pistol / SMG (in the shop: buy items) |
 | P / Esc | Pause |
-| M | Mute music & sound |
+| M | Mute |
 | Q | Quick-save |
-| 1 / 2 / 3 | Fists / Pistol / SMG |
+| L | Load save |
+| R | Restart (after game over / story complete) |
 
 ## Systems
 
-- **Explore on foot and by car** — plus a speedboat at the marina; steal any parked car with E.
-- **Traffic cars and pedestrians** with simple AI (grid driving, wandering, panic when danger is near).
-- **Wanted system, 1–5 stars** — police cars, foot cops and a police boat respond; the level decays when you stay hidden.
-- **10 story missions** with dialogue, objectives, checkpoints, races, a boat chase and a final heist.
-- **Combat** — fists and pistol/SMG with ammo, health and armor; violence raises your wanted level.
-- **Money progression** — earn cash from missions, buy weapons, ammo, armor, cars and safehouse upgrades at the shop.
-- **HUD** — cash, health, wanted stars, mission objective, clock, plus a live minimap.
-- **Start menu, pause, game over and restart; save/load via localStorage.**
-- **Day/night cycle** with a sunset palette, neon signs and lit windows at night.
-- **Synth radio music and sound effects** (WebAudio, M to mute).
-- **Deterministic** — seeded RNG everywhere; screenshot poses via `?shot=start|play|chase|end&seed=1`.
+- **On foot, by car, by speedboat** — steal parked cars, drive the road grid, take the boat from the marina.
+- **Traffic and pedestrians** — traffic cars follow the roads, pedestrians wander the sidewalks and panic when danger is near.
+- **Wanted system (1–5 stars)** — rises when you steal cars, shoot, or hit pedestrians; police cars, foot cops, and a police boat respond, scaling with the star level; the level decays when you stay hidden and quiet.
+- **Combat** — fists, pistol and SMG with ammo, health and armor (armor absorbs damage first).
+- **Money progression** — mission payouts plus a corner shop selling weapons, ammo, armor, car repairs and more.
+- **HUD + live minimap** — cash, health/armor bars, wanted stars, mission tracker, in-game clock, radio station, and a minimap showing the city, the player, police, and the mission marker.
+- **Synth radio** — two WebAudio stations (SOLMAR FM, PALM WAVE) plus synthesized effects for shots, pickups, crashes and sirens.
+- **Save/load** — quick-save with Q, load with L, via localStorage.
+- **Deterministic screenshot poses** — `?shot=start|play|chase|end&seed=1`.
 
-## Tests
+## How to run
+
+```sh
+node serve.ts        # then open http://localhost:8080
+```
+
+Or serve `game/` with any static file server and open `game/index.html`.
+
+## How to test
 
 ```sh
 node tests/logic.test.mjs
 ```
 
-## Entry
+The logic tests cover RNG determinism, iso projection round-trips, deterministic world generation, driving/walking, the wanted system, combat and armor, the 10-mission state machine, and save/load.
 
-`main.ts` (Node 22, stdlib only) copies `game/` and `screenshots/` to `/output` (or `$MAKEFUN_OUTPUT_DIR`) and writes `/output/dossier.json`.
+## Files
+
+| File | Job |
+| --- | --- |
+| `game/src/config.js` | Tuning constants, palettes, prices |
+| `game/src/random.js` | mulberry32 RNG + math helpers |
+| `game/src/world.js` | Seeded city generation (districts, roads, bridges, marina) |
+| `game/src/input.js` | Keyboard/mouse state |
+| `game/src/entities.js` | Player, pedestrians, traffic, police + their AI |
+| `game/src/missions.js` | 10-mission story and state machine |
+| `game/src/combat.js` | Weapons, shooting cones, armor/damage |
+| `game/src/audio.js` | WebAudio synth radio + SFX |
+| `game/src/render.js` | Isometric renderer, HUD, minimap, screens |
+| `game/src/shots.js` | Deterministic screenshot poses |
+| `game/src/save.js` | localStorage save/load |
+| `game/src/main.js` | Game loop, state machine, wiring |
+| `main.ts` | Entry program: copies the game to `/output` + writes `dossier.json` |

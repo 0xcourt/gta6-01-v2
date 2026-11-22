@@ -1,25 +1,47 @@
-// Solmar Heat — entry program. Copies game/ and screenshots/ to the output
-// directory and writes /output/dossier.json with buildDossier. Node 22, stdlib only.
-// Note: the output directory is never removed here — in the grader it is a
-// Docker volume mount point, so deleting it would fail and abort the run.
-import { cpSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+// Solmar Heat — the entry program (Node 22, standard library only).
+// It hands the game in: copy game/ and screenshots/ from beside this file
+// into the output directory and write /output/dossier.json with the vendored
+// make.fun library. The output directory is only ever created, never
+// removed — deleting it fails on the grader's mounted volume, so this program
+// just layers the fresh files over whatever is already there.
+//
+// Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output:
+//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+
+import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
 
 const repoRoot = dirname(fileURLToPath(import.meta.url));
-const outDir = resolve(process.env.MAKEFUN_OUTPUT_DIR || '/output');
+const destination = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+const gameSource = join(repoRoot, 'game');
+const shotsSource = join(repoRoot, 'screenshots');
+const dossierPath = join(destination, 'dossier.json');
 
-mkdirSync(outDir, { recursive: true });
-cpSync(join(repoRoot, 'game'), join(outDir, 'game'), { recursive: true });
-cpSync(join(repoRoot, 'screenshots'), join(outDir, 'screenshots'), { recursive: true });
+// Make sure the destination exists, then lay the game over it.
+mkdirSync(destination, { recursive: true });
+mkdirSync(join(destination, 'game'), { recursive: true });
+cpSync(gameSource, join(destination, 'game'), { recursive: true });
 
-const dossier = buildDossier(outDir, {
+// Screenshots are optional on disk but expected in the repo; copy them when
+// present so the dossier can include them.
+if (existsSync(shotsSource)) {
+  mkdirSync(join(destination, 'screenshots'), { recursive: true });
+  cpSync(shotsSource, join(destination, 'screenshots'), { recursive: true });
+}
+
+// The scorer's own caps: only text_max_bytes shapes the bytes; the rest
+// refuse an entry the scorer would refuse (more than 4 screenshots or one
+// over 256 KiB; more than 993 files in game/ or 48 MiB of game files in all,
+// or a path under game/ over 1000 bytes).
+const dossier = buildDossier(destination, {
   text_max_bytes: 163840,
   screenshots: { max: 4, max_bytes: 262144 },
   game_max_files: 993,
   game_max_bytes: 50331648,
   game_path_max_bytes: 1000,
 });
-writeFileSync(join(outDir, 'dossier.json'), dossier);
-console.log(`Solmar Heat entry written to ${outDir} (output dir kept, never removed)`);
+writeFileSync(dossierPath, dossier);
+
+console.log(`Solmar Heat packaged into ${destination}`);

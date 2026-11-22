@@ -1,86 +1,269 @@
-// Solmar Heat — 10-mission story arc. Roxy must earn 25,000 to buy back her
-// late father's garage from crew boss El Toro. Pure state machine + data.
-export const MISSIONS = [
-  { id: 1, title: 'First Delivery', giver: 'Mama Luz', reward: 400, kind: 'deliver',
-    briefing: 'Mama Luz needs a package at the Marina. Drive it there, no questions.',
-    dialogue: ['ROXY: One package, one drive. Easy money.', 'MAMA LUZ: The marina boys are watching. Be quick, mija.'],
-    target: { x: 1720, y: 420 }, text: 'Deliver the package to the Marina' },
-  { id: 2, title: 'Hot Wheels', giver: 'Tito', reward: 600, kind: 'steal',
-    briefing: 'Tito wants a Sunset Coupe from Downtown. Borrow it. Permanently.',
-    dialogue: ['TITO: Parked outside the tower, keys in it. Rich people, huh?', 'ROXY: Borrowing is such an ugly word.'],
-    target: { x: 1000, y: 400 }, text: 'Steal the Sunset Coupe and bring it to the garage' },
-  { id: 3, title: 'The Getaway', giver: 'Mama Luz', reward: 900, kind: 'escape',
-    briefing: 'A pickup went loud. Lose the police, then reach the safehouse.',
-    dialogue: ['ROXY: Two stars already? I just got here.', 'MAMA LUZ: Drive like your father taught you.'],
-    target: { x: 820, y: 1380 }, text: 'Lose the police, then reach the safehouse' },
-  { id: 4, title: 'Dockside Pickup', giver: 'Captain Vela', reward: 1200, kind: 'deliver',
-    briefing: 'Crates at the Port need a courier. Pick up at the docks, drop at Old Town.',
-    dialogue: ['CAPTAIN VELA: The manifest says machine parts. Do not open it.', 'ROXY: Machine parts. Got it. Heavy machine parts.'],
-    target: { x: 1000, y: 1500 }, text: 'Collect the crate at the Port, deliver to Old Town' },
-  { id: 5, title: 'Beach Run', giver: 'Tito', reward: 1500, kind: 'race',
-    briefing: 'A race down the Beach Strip. Beat the clock, beat the traffic.',
-    dialogue: ['TITO: Three checkpoints, one beach. Do not hit the umbrellas.', 'ROXY: No promises about the umbrellas.'],
-    target: { x: 1500, y: 1900 }, text: 'Hit all 3 beach checkpoints before time runs out' },
-  { id: 6, title: 'Harbor Lights', giver: 'Captain Vela', reward: 2200, kind: 'boat',
-    briefing: 'Take the speedboat from the Marina to Isla Verde. The police boat is out tonight.',
-    dialogue: ['CAPTAIN VELA: The boat is fast. The water is faster. Go.', 'ROXY: Finally, a job with a view.'],
-    target: { x: 2190, y: 450 }, text: 'Take the boat to Isla Verde' },
-  { id: 7, title: 'Debt Collector', giver: 'El Toro', reward: 3000, kind: 'combat',
-    briefing: 'El Toro wants a word with a rival crew at the Industrial zone. Bring protection.',
-    dialogue: ['EL TORO: You drive for me now, Roxy. Collect what they owe.', 'ROXY: I collect. I do not kneel.'],
-    target: { x: 300, y: 900 }, text: 'Deal with the rival crew at the Industrial zone' },
-  { id: 8, title: 'Night Shift', giver: 'Mama Luz', reward: 3800, kind: 'deliver',
-    briefing: 'Three drops across the city, all before dawn. The night is yours.',
-    dialogue: ['MAMA LUZ: Downtown, Marina, Old Town. In that order.', 'ROXY: Three drops, one tank of gas. Let us go.'],
-    target: { x: 1000, y: 400 }, text: 'Make all 3 drops: Downtown, Marina, Old Town' },
-  { id: 9, title: 'The Setup', giver: 'Tito', reward: 5000, kind: 'escape',
-    briefing: 'El Toro set a trap. Survive the ambush, escape with 4 stars, reach the garage.',
-    dialogue: ['TITO: It is a trap, Roxy. The whole crew is coming.', 'ROXY: Then they will learn what my father taught me.'],
-    target: { x: 900, y: 1500 }, text: 'Survive the ambush and reach the garage' },
-  { id: 10, title: 'Take Back the Garage', giver: 'Roxy', reward: 8000, kind: 'heist',
-    briefing: 'Final job: storm El Toro\u2019s tower, take the deed, and buy back Marin Garage for good.',
-    dialogue: ['ROXY: This is for my father. For the garage. For Solmar.', 'EL TORO: You cannot take what is mine, little driver.', 'ROXY: Watch me.'],
-    target: { x: 1100, y: 300 }, text: 'Storm the tower, take the deed, return to the garage' },
-];
+// Solmar Heat — the story: ten missions for Rosa "Roxy" Marín.
+// Roxy, a former getaway driver turned courier, has to earn $25,000 to buy
+// back her late father's garage from the rival crew boss El Toro. Every
+// mission pays out, and the ten payouts add up to exactly $25,000.
+// A mission is a list of objectives; the state machine walks them in order
+// (start -> objectives -> complete -> next mission) and ends the story after
+// mission ten.
 
-export function missionById(id) { return MISSIONS.find((m) => m.id === id) || null; }
+import { distance } from './random.js';
 
-export function makeMissionState() {
-  return { current: 1, status: 'idle', // idle | active | complete | done
-    objectiveIndex: 0, timer: 0, checkpointsHit: 0, dropsDone: 0,
-    completed: [], totalEarned: 0, message: '', dialogueIndex: 0 };
+export function buildMissions(world) {
+  const L = world.landmarks;
+  return [
+    {
+      id: 1,
+      title: 'First Delivery',
+      brief: [
+        'ROXY: One last courier run and the garage fund starts growing.',
+        'Pick up the package at the corner shop, then drop it on the beach strip.',
+      ],
+      reward: 500,
+      objectives: [
+        { type: 'goto', x: L.shop.x, y: L.shop.y, label: 'Pick up the package at the corner shop' },
+        { type: 'goto', x: L.beach.x, y: L.beach.y, label: 'Deliver the package to the beach strip' },
+      ],
+    },
+    {
+      id: 2,
+      title: 'Hot Wheels',
+      brief: [
+        'ROXY: No wheels, no work. Borrow a car — permanently.',
+        'El Toro\'s boys watch the garage. Take any parked car and bring it home.',
+      ],
+      reward: 800,
+      objectives: [
+        { type: 'steal', label: 'Steal a car (press E next to one)' },
+        { type: 'goto', x: L.garage.x, y: L.garage.y, label: 'Bring the car back to the garage' },
+      ],
+    },
+    {
+      id: 3,
+      title: 'The Getaway',
+      brief: [
+        'ROXY: El Toro\'s crew knows my face now. Time to prove the old getaway driver still has it.',
+        'Race to the hillside villas before the timer runs out.',
+      ],
+      reward: 1200,
+      objectives: [
+        { type: 'race', x: L.hills.x, y: L.hills.y, timer: 90, label: 'Race to the hillside villas — beat the clock' },
+      ],
+    },
+    {
+      id: 4,
+      title: 'Dockside Pickup',
+      brief: [
+        'ROXY: A crate came in on the night ferry. Nobody asks what\'s inside.',
+        'Collect it at the port, then run it up to downtown.',
+      ],
+      reward: 1500,
+      objectives: [
+        { type: 'goto', x: L.port.x, y: L.port.y, label: 'Collect the crate at the port' },
+        { type: 'goto', x: L.downtown.x, y: L.downtown.y, label: 'Deliver the crate downtown' },
+      ],
+    },
+    {
+      id: 5,
+      title: 'Heat on the Strip',
+      brief: [
+        'ROXY: The cops are crawling the beach strip tonight. So be it.',
+        'Survive 60 seconds with the heat on you. Don\'t get boxed in.',
+      ],
+      reward: 2000,
+      objectives: [
+        { type: 'survive', timer: 60, stars: 2, label: 'Survive the heat for 60 seconds' },
+      ],
+    },
+    {
+      id: 6,
+      title: 'Island Run',
+      brief: [
+        'ROXY: A client on the east island pays double for discretion.',
+        'Take the speedboat from the marina and cross to the east island.',
+      ],
+      reward: 2500,
+      objectives: [
+        { type: 'goto', x: L.marina.x, y: L.marina.y, label: 'Get to the marina' },
+        { type: 'boat', x: L.islandEast.x, y: L.islandEast.y, label: 'Take the boat across to the east island' },
+      ],
+    },
+    {
+      id: 7,
+      title: "El Toro's Errand",
+      brief: [
+        'ROXY: El Toro wants a "favour". I do it, he backs off the garage — for now.',
+        'Run his package to the industrial zone. 75 seconds, no excuses.',
+      ],
+      reward: 3000,
+      objectives: [
+        { type: 'race', x: L.industrial.x, y: L.industrial.y, timer: 75, label: 'Deliver to the industrial zone in 75 seconds' },
+      ],
+    },
+    {
+      id: 8,
+      title: 'Midnight Chase',
+      brief: [
+        'ROXY: Three stars and every cruiser in Solmar on my tail. Classic.',
+        'Lose the police completely — get the wanted level back to zero.',
+      ],
+      reward: 3500,
+      objectives: [
+        { type: 'escape', stars: 3, label: 'Lose the police — get back to zero stars' },
+      ],
+    },
+    {
+      id: 9,
+      title: 'The Big Score Setup',
+      brief: [
+        'ROXY: Three drops, three corners of the city. Then the garage is almost mine.',
+        'Collect the packages at the port, downtown and the hills.',
+      ],
+      reward: 4000,
+      objectives: [
+        { type: 'goto', x: L.port.x, y: L.port.y, label: 'Collect package 1 of 3 — the port' },
+        { type: 'goto', x: L.downtown.x, y: L.downtown.y, label: 'Collect package 2 of 3 — downtown' },
+        { type: 'goto', x: L.hills.x, y: L.hills.y, label: 'Collect package 3 of 3 — the hills' },
+      ],
+    },
+    {
+      id: 10,
+      title: 'The Garage Heist',
+      brief: [
+        'ROXY: Tonight I take back what\'s mine. El Toro\'s crew guards the garage — hold them off.',
+        'Get to the garage and survive the final stand. Then the keys are mine.',
+      ],
+      reward: 6000,
+      objectives: [
+        { type: 'goto', x: L.garage.x, y: L.garage.y, label: 'Get to the garage' },
+        { type: 'survive', timer: 45, stars: 3, label: 'Hold the garage for 45 seconds' },
+      ],
+    },
+  ];
 }
 
-export function startMission(state, id) {
-  const m = missionById(id);
-  if (!m) return state;
-  state.current = id; state.status = 'active';
-  state.objectiveIndex = 0; state.timer = m.kind === 'race' ? 75 : 0;
-  state.checkpointsHit = 0; state.dropsDone = 0; state.dialogueIndex = 0;
-  state.message = m.briefing;
-  return state;
-}
+export class MissionState {
+  constructor(missions) {
+    this.missions = missions;
+    this.index = 0; // which mission is active
+    this.objectiveIndex = 0; // which objective inside it
+    this.timer = 0; // counts down for timed objectives
+    this.state = 'active'; // active | done
+    this.started = false;
+  }
 
-export function completeMission(state, player) {
-  const m = missionById(state.current);
-  if (!m || state.status !== 'active') return null;
-  state.status = 'complete';
-  state.completed.push(m.id);
-  state.totalEarned += m.reward;
-  if (player) player.cash += m.reward;
-  state.message = `Mission complete: ${m.title} — +$${m.reward}`;
-  return m;
-}
+  current() {
+    return this.missions[this.index] || null;
+  }
 
-export function advanceMission(state, player) {
-  // Called after the complete screen is dismissed.
-  if (state.status !== 'complete') return state;
-  const next = state.current + 1;
-  if (next > MISSIONS.length) { state.status = 'done'; return state; }
-  return startMission(state, next);
-}
+  objective() {
+    const mission = this.current();
+    if (!mission) return null;
+    return mission.objectives[this.objectiveIndex] || null;
+  }
 
-export function missionProgress(state) {
-  return { done: state.completed.length, total: MISSIONS.length, current: state.current, status: state.status };
+  get done() {
+    return this.index >= this.missions.length;
+  }
+
+  get totalReward() {
+    return this.missions.reduce((sum, m) => sum + m.reward, 0);
+  }
+
+  startObjective(game) {
+    const objective = this.objective();
+    if (!objective) return;
+    if (objective.timer) this.timer = objective.timer;
+    if (objective.type === 'survive' || objective.type === 'escape') {
+      const stars = objective.stars || 2;
+      if (game.wanted < stars) game.wanted = stars;
+      game.lastCrimeAt = game.elapsed;
+    }
+    this.started = true;
+  }
+
+  update(game, dt) {
+    if (this.done) return;
+    const mission = this.current();
+    const objective = this.objective();
+    if (!mission || !objective) return;
+    const player = game.player;
+
+    if (objective.type === 'goto' || objective.type === 'deliver'
+      || objective.type === 'race' || objective.type === 'boat') {
+      const d = distance(player.x, player.y, objective.x, objective.y);
+      if (objective.type === 'boat'
+        && (!player.vehicle || player.vehicle.kind !== 'boat')) {
+        // The boat leg only counts while actually on the water.
+        if (d < 2.5) game.events.push('needBoat');
+      } else if (d < 2.2) {
+        this.completeObjective(game);
+        return;
+      }
+      if (objective.type === 'race') {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+          this.timer = objective.timer;
+          game.message = 'Too slow — the clock reset. Try again, faster.';
+          game.messageTimer = 3;
+          game.events.push('raceReset');
+        }
+      }
+      return;
+    }
+
+    if (objective.type === 'steal') {
+      if (player.vehicle) this.completeObjective(game);
+      return;
+    }
+
+    if (objective.type === 'escape') {
+      if (game.wanted <= 0) this.completeObjective(game);
+      return;
+    }
+
+    if (objective.type === 'survive') {
+      this.timer -= dt;
+      if (game.wanted < 2) game.wanted = 2;
+      if (this.timer <= 0) this.completeObjective(game);
+    }
+  }
+
+  completeObjective(game) {
+    const mission = this.current();
+    game.events.push('objectiveDone');
+    if (game.audio) game.audio.playPickup();
+    this.objectiveIndex += 1;
+    if (this.objectiveIndex >= mission.objectives.length) {
+      this.finishMission(game);
+    } else {
+      this.startObjective(game);
+    }
+  }
+
+  finishMission(game) {
+    const mission = this.current();
+    game.cash += mission.reward;
+    game.message = `Mission complete: ${mission.title} — +$${mission.reward}`;
+    game.messageTimer = 4;
+    game.events.push('missionComplete');
+    this.index += 1;
+    this.objectiveIndex = 0;
+    this.timer = 0;
+    if (this.done) {
+      this.state = 'done';
+      game.state = 'complete';
+      game.events.push('storyComplete');
+    } else {
+      this.startObjective(game);
+    }
+  }
+
+  // Jump straight to a mission (used by the screenshot poses and saves).
+  jumpTo(game, missionIndex) {
+    this.index = Math.max(0, Math.min(missionIndex, this.missions.length - 1));
+    this.objectiveIndex = 0;
+    this.timer = 0;
+    this.state = 'active';
+    this.startObjective(game);
+  }
 }
-export function isStoryDone(state) { return state.status === 'done'; }
