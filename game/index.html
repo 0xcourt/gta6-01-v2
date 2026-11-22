@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solmar Heat — an open-world crime game</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23ff7e5f'/></svg>">
+<style>
+  html, body { margin: 0; padding: 0; background: #14101c; color: #fff; font-family: system-ui, sans-serif; }
+  #wrap { width: 1280px; max-width: 100vw; margin: 0 auto; }
+  canvas { display: block; width: 1280px; max-width: 100vw; height: 720px; max-height: calc(100vw * 0.5625); background: #1b2340; }
+  #status { padding: 8px 12px; font-size: 14px; color: #ffd97a; }
+  #help { padding: 0 12px 16px; font-size: 13px; color: #bbb; line-height: 1.6; }
+  #help b { color: #fff; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="1280" height="720"></canvas>
+  <div id="status">Solmar Heat — loading…</div>
+  <div id="help"><b>Solmar Heat.</b> Rosa &ldquo;Roxy&rdquo; Marin must earn $25,000 to buy back her father&rsquo;s garage from El Toro.
+  <b>WASD / arrows</b> move &amp; drive &middot; <b>E</b> enter / exit / steal car &middot; <b>F</b> punch &middot; <b>mouse + click</b> aim &amp; shoot &middot;
+  <b>Space</b> handbrake &middot; <b>P / Esc</b> pause &middot; <b>M</b> mute &middot; <b>Q</b> quick-save &middot; <b>1/2/3</b> weapons.
+  Missions, wanted stars, shops, day/night and a live minimap are all in the game. No network needed.</div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
